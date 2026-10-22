@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nudge – voice reminders</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f3f6f2;--surf:#fff;--ink:#17231c;--mut:#5d6b62;--line:#d9e1da;--acc:#0f6b4f;--accink:#fff;--warn:#b4531a;--me:#dff1e8;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1713;--surf:#17211b;--ink:#e8f1ea;--mut:#98a89d;--line:#28362d;--acc:#4cc79a;--accink:#06231a;--warn:#f09a5f;--me:#1d3a2c}}
+:root[data-theme="dark"]{--bg:#0f1713;--surf:#17211b;--ink:#e8f1ea;--mut:#98a89d;--line:#28362d;--acc:#4cc79a;--accink:#06231a;--warn:#f09a5f;--me:#1d3a2c}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-width:640px;margin:0 auto}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:20px;margin:0;flex:1;letter-spacing:.2px}
+header select{padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink);font:inherit;font-size:14px}
+header input{width:80px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink);font:inherit;font-size:14px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--surf);color:var(--ink);border-radius:10px;padding:8px 12px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.pri{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:700}
+nav{display:flex;gap:6px;padding:8px 16px}
+nav button{flex:1}nav .on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+section{display:none;flex:1;min-height:0;flex-direction:column;padding:0 16px 12px}
+section.on{display:flex}
+#log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:8px 0}
+.m{max-width:85%;padding:9px 12px;border-radius:14px;background:var(--surf);border:1px solid var(--line);white-space:pre-wrap}
+.m.me{align-self:flex-end;background:var(--me);border-color:transparent}
+.m small{display:block;color:var(--mut);font-size:12px}
+#chips{display:flex;gap:8px;flex-wrap:wrap;padding:4px 0}
+#chips:empty{display:none}
+.bar{display:flex;gap:8px;align-items:center;padding-top:8px}
+.bar input{flex:1;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surf);color:var(--ink);font:inherit}
+#mic{width:52px;height:52px;border-radius:50%;padding:0;display:grid;place-items:center;flex:none}
+#wave{display:none;align-items:center;gap:12px;padding:10px 12px;margin-top:8px;border:1px solid var(--warn);border-radius:12px;background:var(--surf)}
+#wave span:last-of-type{flex:1;font-weight:700}
+body:has(#mic.live) #wave{display:flex}
+.bars{display:flex;align-items:center;gap:3px;height:28px}
+.bars i{width:4px;height:100%;border-radius:2px;background:var(--warn);animation:eq 1s ease-in-out infinite}
+.bars i:nth-child(2){animation-delay:.15s}.bars i:nth-child(3){animation-delay:.3s}.bars i:nth-child(4){animation-delay:.45s}.bars i:nth-child(5){animation-delay:.6s}
+@keyframes eq{0%,100%{transform:scaleY(.2)}50%{transform:scaleY(1)}}
+#mic.live{background:var(--warn);border-color:var(--warn);color:#fff;animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(240,120,50,.55)}100%{box-shadow:0 0 0 16px rgba(240,120,50,0)}}
+@media (prefers-reduced-motion:reduce){#mic.live,.bars i{animation:none}}
+.hint{color:var(--mut);font-size:13px;margin:4px 0}
+.cal-h{display:flex;align-items:center;justify-content:space-between;padding:8px 0}
+.cal-h b{font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.grid .d{font-size:12px;color:var(--mut)}
+.c{aspect-ratio:1;border:1px solid var(--line);border-radius:10px;background:var(--surf);padding:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:14px}
+.c.o{opacity:.35}.c.t{border-color:var(--acc);font-weight:700}.c.s{background:var(--acc);color:var(--accink)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--warn)}.dot.dn{background:var(--acc)}.c.s .dot{background:var(--accink)}
+#list{overflow-y:auto;flex:1;margin-top:10px}
+.task{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surf);margin-bottom:8px}
+.task .tx{flex:1}.task .tx small{color:var(--mut);display:block}
+.task.dn .tx b{text-decoration:line-through;color:var(--mut)}
+.task button{padding:6px 9px}
+#toast{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);max-width:616px;margin:0 auto;background:var(--acc);color:var(--accink);padding:12px 14px;border-radius:12px;display:none;z-index:9;font-weight:700}
+</style>
+</head>
+<body>
+<div id="toast" role="alert"></div>
+<header>
+  <h1>Nudge</h1>
+  <input id="name" aria-label="Your name" placeholder="Your name">
+  <select id="lang" aria-label="Voice language"><option value="en-IN">English</option><option value="te-IN">తెలుగు</option><option value="hi-IN">हिन्दी</option></select>
+  <button id="alerts" title="Allow notifications and sound">🔔 Enable</button>
+</header>
+<nav>
+  <button id="t1" class="on">🎙️ Voice chat</button>
+  <button id="t2">📅 Calendar</button>
+</nav>
+<main>
+<section id="p1" class="on">
+  <div id="log" aria-live="polite"></div>
+  <div id="chips"></div>
+  <p class="hint" id="hint">Try: “Remind me to pay rent in 3 days” · “Remind me in 2 minutes to stretch” · “Every day at 8 am take vitamins”</p>
+  <div id="wave" role="status"><div class="bars"><i></i><i></i><i></i><i></i><i></i></div><span>Listening… speak now</span><button id="stop">Stop</button></div>
+  <div class="bar">
+    <input id="txt" placeholder="Type or tap the mic…" autocomplete="off">
+    <button id="send" class="pri">Send</button>
+    <button id="mic" class="pri" aria-label="Speak"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+  </div>
+</section>
+<section id="p2">
+  <div class="cal-h"><button id="prev" aria-label="Previous month">‹</button><b id="mt"></b><button id="next" aria-label="Next month">›</button></div>
+  <div class="grid" id="grid"></div>
+  <div id="list"></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let S={tasks:[],name:'Venkat',lang:'en-IN'};
+try{const r=localStorage.getItem('nudge');if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+const save=()=>{try{localStorage.setItem('nudge',JSON.stringify(S))}catch(e){}};
+let pending=null,cur=new Date(),sel=new Date();
+const NW={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
+const WD=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const sod=d=>{d=new Date(d);d.setHours(0,0,0,0);return d};
+const addD=(d,n)=>{d=new Date(d);d.setDate(d.getDate()+n);return d};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const same=(a,b)=>sod(a).getTime()==sod(b).getTime();
+const dl=d=>new Date(d).toLocaleDateString([],{weekday:'long',day:'numeric',month:'short'});
+const fmt=t=>new Date(t).toLocaleString([],{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+const num=x=>+x||NW[x];
+
+function parseWhen(raw,bare){
+  let t=raw.toLowerCase(),r={},m;
+  const cut=x=>{t=t.replace(x,' ')};
+  if(m=t.match(/\b(every\s?day|daily)\b/)){r.rep='d';cut(m[0])}
+  else if(m=t.match(/\b(every week|weekly)\b/)){r.rep='w';cut(m[0])}
+  else if(m=t.match(new RegExp('\\bevery\\s+('+WD.join('|')+')\\b'))){r.rep='w';t=t.replace(/\bevery\s+/,'')}
+  if(m=t.match(/\b(?:in|after)\s+(\d+|an?|one|two|three|four|five|six|seven|eight|nine|ten)\s*(minute|min|hour|hr|day|week)s?\b/)){
+    const n=num(m[1]),u=m[2][0];
+    if(u=='m')r.abs=Date.now()+n*6e4;else if(u=='h')r.abs=Date.now()+n*36e5;else r.date=addD(sod(new Date()),u=='d'?n:n*7);
+    cut(m[0]);
+  }else if(m=t.match(/\bnext\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*days?\b/)){r.date=addD(sod(new Date()),num(m[1]));cut(m[0])}
+  else if(m=t.match(/\bday after tomorrow\b/)){r.date=addD(sod(new Date()),2);cut(m[0])}
+  else if(m=t.match(/\bnext week\b/)){r.date=addD(sod(new Date()),7);cut(m[0])}
+  else if(m=t.match(/\btomorrow\b/)){r.date=addD(sod(new Date()),1);cut(m[0])}
+  else if(m=t.match(/\b(today|tonight)\b/)){r.date=sod(new Date());cut(m[0])}
+  else if(m=t.match(new RegExp('\\b(?:on\\s+)?('+WD.join('|')+')\\b'))){const i=WD.indexOf(m[1]);let n=(i-new Date().getDay()+7)%7||7;r.date=addD(sod(new Date()),n);cut(m[0])}
+  if(!r.abs){
+    if(m=t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)/)){let h=+m[1]%12;if(m[3][0]=='p')h+=12;r.time=[h,+(m[2]||0)];cut(m[0])}
+    else if(m=t.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\b/)){let h=+m[1];if(h>=1&&h<=7)h+=12;r.time=[h%24,+(m[2]||0)];cut(m[0])}
+    else if(/\bnoon\b/.test(t)){r.time=[12,0];cut(/\bnoon\b/)}
+    else if(/\bmidnight\b/.test(t)){r.time=[0,0];cut(/\bmidnight\b/)}
+    else if(bare&&(m=t.match(/^\D*(\d{1,2})(?:[:\s.](\d{2}))?\D*$/))){let h=+m[1];if(h>=1&&h<=7)h+=12;r.time=[h%24,+(m[2]||0)];t=''}
+  }
+  t=t.replace(/\b(please|remind me|remind|schedule|add|set (a )?reminder|set|reminder|me|to|that|for|on|at|about|and|in|every)\b/g,' ').replace(/\s+/g,' ').trim();
+  r.title=t?t[0].toUpperCase()+t.slice(1):'Task';
+  return r;
+}
+
+function ts(x){return x&&x.getTime?x.getTime():x}
+function say(who,text){const d=document.createElement('div');d.className='m '+(who=='me'?'me':'');d.textContent=text;$('#log').appendChild(d);$('#log').scrollTop=1e9}
+function reply(text,speakIt=true){say('bot',text);if(speakIt)speak(text)}
+function ask(text){reply(text);listenSoon()}
+
+function speak(text,cb,lg){
+  try{
+    if(!window.speechSynthesis){cb&&cb();return}
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);u.lang=lg||'en-IN';
+    if(cb){u.onend=cb;u.onerror=cb}
+    speechSynthesis.speak(u);
+  }catch(e){cb&&cb()}
+}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',9000)}
+function ping(title,body){
+  toast(title+': '+body);
+  try{if('Notification' in window&&Notification.permission=='granted')new Notification(title,{body})}catch(e){}
+}
+
+/* ---------- speech recognition ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null,listening=false;
+if(SR){
+  rec=new SR();rec.lang='en-IN';rec.interimResults=false;rec.continuous=false;
+  rec.onresult=e=>{const t=e.results[0][0].transcript;if(t)handle(t)};
+  rec.onend=()=>{listening=false;$('#mic').classList.remove('live')};
+  rec.onerror=e=>{listening=false;$('#mic').classList.remove('live');if(e.error=='not-allowed'||e.error=='service-not-allowed')($('#hint').textContent='Microphone is blocked. In Chrome open ⋮ › Settings › Site settings › Microphone, or type instead.',toast('Microphone is blocked. Allow it in Chrome Site settings, or type instead.'))};
+}else $('#hint').textContent='Voice input isn’t supported in this browser. Type your request instead (Chrome, Edge or Safari support voice).';
+function listen(){if(!rec||listening)return;try{speechSynthesis&&speechSynthesis.cancel();rec.lang=S.lang||'en-IN';rec.start();listening=true;$('#mic').classList.add('live')}catch(e){}}
+function listenSoon(){setTimeout(()=>{if(!speechSynthesis.speaking)listen();else{const i=setInterval(()=>{if(!speechSynthesis.speaking){clearInterval(i);listen()}},300)}},600)}
+
+/* ---------- conversation logic ---------- */
+function handle(text){
+  say('me',text);const l=text.toLowerCase();
+  if(pending&&pending.kind=='check'){
+    const t=S.tasks.find(x=>x.id==pending.id);
+    if(!t){pending=null;return}
+    if(/\b(not|no|resched|postpone|later|haven|didn)/.test(l)||/नहीं|बाद में|टाल|రీషెడ్యూల్|లేదు|తర్వాత|వాయిదా|కాలేదు/.test(l)){pending={kind:'fill',id:t.id,title:t.title};return fill(text)}
+    if(/\b(done|complet|finish|yes|yeah|yep|did)/.test(l)||/हो गया|पूरा|हाँ|हां|कर लिया|అయింది|పూర్తి|అవును|చేశాను/.test(l)){t.status='done';pending=null;save();render();return reply(`Well done, ${S.name}! I’ve marked “${t.title}” as completed.`)}
+    return ask('Did you complete it, or should I reschedule? Say “completed” or “reschedule”.');
+  }
+  if(pending&&pending.kind=='fill')return fill(text);
+  const w=parseWhen(text);
+  if(w.abs||w.date||w.time||/remind|schedule|appointment|meeting|task|remember/.test(l)){pending={kind:'fill',id:null,title:w.title};return fill(text)}
+  reply(`I can set reminders for you. Try “Remind me to call the bank in 3 days”.`);
+}
+function fill(text){
+  const p=pending,w=parseWhen(text,!!p.date&&!p.time);
+  if(w.abs)p.abs=w.abs;if(w.date)p.date=w.date;if(w.time)p.time=w.time;if(w.rep)p.rep=w.rep;
+  let due;
+  if(p.abs)due=p.abs;
+  else{
+    if(!p.date&&!p.time)return ask('Which day and time should I set it for?');
+    if(!p.date){p.date=sod(new Date());const d=new Date(p.date);d.setHours(...p.time);if(d<=Date.now())p.date=addD(p.date,1)}
+    if(!p.time)return ask(`What time on ${dl(p.date)}?`);
+    const d=new Date(p.date);d.setHours(p.time[0],p.time[1],0,0);due=d.getTime();
+  }
+  if(due<=Date.now()+30000){p.date=null;p.time=null;p.abs=null;return ask('That time has already passed. Which day and time should I use?')}
+  let t=p.id&&S.tasks.find(x=>x.id==p.id);
+  if(t){t.due=due;t.status='pending';t.sent={}}
+  else{t={id:Date.now(),title:p.title,due,status:'pending',sent:{},rep:p.rep};S.tasks.push(t)}
+  pending=null;save();sel=new Date(due);cur=new Date(due);render();
+  reply(`Done. I’ll remind you about “${t.title}” on ${fmt(due)}.${t.rep?(t.rep=='d'?' It repeats every day.':' It repeats every week.'):''} You’ll get a heads-up the day before, another one hour before, and I’ll ask you at the time.`);
+}
+
+/* ---------- scheduler ---------- */
+function tick(){
+  const now=Date.now();
+  for(const t of S.tasks){
+    if(t.status!='pending')continue;t.sent=t.sent||{};
+    const dayBefore=sod(addD(t.due,-1)).getTime()+9*36e5;
+    if(!t.sent.day&&now>=dayBefore){t.sent.day=1;save();if(t.due-now>36e5*2){const m=`Heads-up: tomorrow you have “${t.title}” at ${new Date(t.due).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}.`;say('bot',m);ping('Tomorrow',m)}}
+    if(!t.sent.hr&&now>=t.due-36e5){t.sent.hr=1;save();if(now<t.due-6e4){const m=`In about an hour: “${t.title}” at ${new Date(t.due).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}.`;say('bot',m);ping('Coming up',m);speak(`Hi ${S.name}, one hour to go for ${t.title}.`)}}
+    if(!t.sent.due&&now>=t.due){t.sent.due=1;save();checkin(t)}
+  }
+}
+function checkin(t){
+  if(t.rep){S.tasks.push({id:Date.now()+1,title:t.title,due:addD(t.due,t.rep=='d'?1:7).getTime(),status:'pending',sent:{},rep:t.rep});delete t.rep;save();render()}
+  pending={kind:'check',id:t.id};
+  const Q={'te-IN':`హాయ్ ${S.name}, ఈ రోజు మీకు ${t.title} ఉంది. మీరు పూర్తి చేశారా లేదా?`,'hi-IN':`नमस्ते ${S.name}, आज आपके पास ${t.title} है। क्या आपने इसे पूरा किया या नहीं?`};
+  const m=Q[S.lang]||`Hi ${S.name}, today you have ${t.title}. Did you complete it or not?`;
+  show('p1');say('bot',m);ping('Task time',m);speak(m,()=>listen(),S.lang);chips();
+}
+function chips(){
+  const c=$('#chips');
+  if(pending&&pending.kind=='check'){c.innerHTML='<button class="pri" data-s="Completed">✅ Completed</button><button data-s="Reschedule">🔁 Reschedule</button>'}else c.innerHTML='';
+}
+setInterval(()=>{tick();chips()},10000);
+
+/* ---------- calendar ---------- */
+function render(){
+  const y=cur.getFullYear(),mo=cur.getMonth();
+  $('#mt').textContent=cur.toLocaleDateString([],{month:'long',year:'numeric'});
+  let h=['S','M','T','W','T','F','S'].map(d=>`<div class="d">${d}</div>`).join('');
+  const first=new Date(y,mo,1),start=addD(first,-first.getDay());
+  for(let i=0;i<42;i++){
+    const d=addD(start,i),ts_=S.tasks.filter(t=>same(t.due,d));
+    const dots=ts_.slice(0,3).map(t=>`<i class="dot ${t.status=='done'?'dn':''}"></i>`).join('');
+    h+=`<button class="c ${d.getMonth()!=mo?'o':''} ${same(d,new Date())?'t':''} ${same(d,sel)?'s':''}" data-d="${d.getTime()}">${d.getDate()}<span style="display:flex;gap:2px;height:6px">${dots}</span></button>`;
+  }
+  $('#grid').innerHTML=h;
+  const L=S.tasks.filter(t=>same(t.due,sel)).sort((a,b)=>a.due-b.due);
+  $('#list').innerHTML=`<p class="hint">${dl(sel)}</p>`+(L.length?L.map(t=>`<div class="task ${t.status=='done'?'dn':''}"><div class="tx"><b>${esc(t.title)}</b><small>${new Date(t.due).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})} · ${t.status=='done'?'Completed':'Pending'}</small></div>${t.status!='done'?`<button data-a="done" data-i="${t.id}" aria-label="Mark completed">✅</button><button data-a="re" data-i="${t.id}" aria-label="Reschedule">🔁</button>`:''}<button data-a="del" data-i="${t.id}" aria-label="Delete">🗑️</button></div>`).join(''):'<p class="hint">No tasks on this day. Use the voice chat to add one.</p>');
+}
+$('#grid').onclick=e=>{const b=e.target.closest('[data-d]');if(b){sel=new Date(+b.dataset.d);render()}};
+$('#prev').onclick=()=>{cur=new Date(cur.getFullYear(),cur.getMonth()-1,1);render()};
+$('#next').onclick=()=>{cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);render()};
+$('#list').onclick=e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;const t=S.tasks.find(x=>x.id==b.dataset.i);if(!t)return;
+  if(b.dataset.a=='done')t.status='done';
+  else if(b.dataset.a=='del')S.tasks=S.tasks.filter(x=>x!==t);
+  else{show('p1');pending={kind:'fill',id:t.id,title:t.title};ask(`When should I move “${t.title}” to?`)}
+  save();render();
+};
+$('#chips').onclick=e=>{const b=e.target.closest('[data-s]');if(b)handle(b.dataset.s)};
+
+/* ---------- ui ---------- */
+function show(id){['p1','p2'].forEach(p=>$('#'+p).classList.toggle('on',p==id));$('#t1').classList.toggle('on',id=='p1');$('#t2').classList.toggle('on',id=='p2')}
+$('#t1').onclick=()=>show('p1');$('#t2').onclick=()=>{show('p2');render()};
+$('#send').onclick=()=>{const v=$('#txt').value.trim();if(v){$('#txt').value='';handle(v)}};
+$('#txt').onkeydown=e=>{if(e.key=='Enter')$('#send').onclick()};
+$('#mic').onclick=()=>{if(listening){try{rec.stop()}catch(e){}}else listen()};
+$('#stop').onclick=()=>$('#mic').onclick();
+$('#name').value=S.name;$('#name').onchange=e=>{S.name=e.target.value.trim()||'Venkat';save()};
+$('#lang').value=S.lang||'en-IN';$('#lang').onchange=e=>{S.lang=e.target.value;save();toast('Voice language updated')};
+$('#alerts').onclick=()=>{
+  try{if('Notification' in window)Notification.requestPermission().then(p=>toast(p=='granted'?'Notifications on':'Notifications are blocked for this page. Try Chrome ⋮ › Settings › Site settings › Notifications. Voice and in-app alerts still work while the app is open.'))}catch(e){}
+  speak('Alerts are on.');
+};
+render();
+reply(`Hi ${S.name}! Tell me what to remind you about and when. Keep this page open so I can alert you.`,false);
+tick();
+</script>
+<script src="native.js"></script>
+</body>
+</html>
